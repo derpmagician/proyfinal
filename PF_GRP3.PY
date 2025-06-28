@@ -1,7 +1,6 @@
 import string
 from fpdf import FPDF
 from datetime import datetime
-from datetime import datetime
 
 class Producto:
     def __init__(self, id, nombre, categoria, precio, stock):
