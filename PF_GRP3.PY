@@ -1,6 +1,6 @@
-import random
 import string
-import qrcode
+from fpdf import FPDF
+from datetime import datetime
 from datetime import datetime
 
 class Producto:
@@ -40,6 +40,12 @@ class Inventario:
     def buscar_por_nombre(self, nombre):
         return [p for p in self.productos if nombre.lower() in p.nombre.lower()]
     
+    def buscar_por_categoria(self, categoria):
+        return [p for p in self.productos if p.categoria.lower() == categoria.lower()]
+    
+    def obtener_categorias(self):
+        return list(set(p.categoria for p in self.productos))
+    
     def eliminar_producto(self, id):
         producto = self.buscar_por_id(id)
         if producto:
@@ -69,17 +75,25 @@ class Venta:
     def __str__(self):
         return f"{self.fecha.strftime('%Y-%m-%d %H:%M')} - {self.producto.nombre} x{self.cantidad} - Total: S/. {self.total:.2f}"
 
-def generar_codigo_qr(contenido, filename):
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(contenido)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    img.save(filename)
+class PDFVentas(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 15)
+        self.cell(80)
+        self.cell(30, 10, 'Reporte de Ventas', 1, 0, 'C')
+        self.ln(20)
+    
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+    
+    def add_venta(self, venta):
+        self.set_font('Arial', '', 12)
+        self.cell(0, 10, f"Fecha: {venta.fecha.strftime('%d/%m/%Y %H:%M')}", 0, 1)
+        self.cell(0, 10, f"Producto: {venta.producto.nombre}", 0, 1)
+        self.cell(0, 10, f"Cantidad: {venta.cantidad}", 0, 1)
+        self.cell(0, 10, f"Total: S/. {venta.total:.2f}", 0, 1)
+        self.ln(10)
 
 class Sistema:
     def __init__(self):
@@ -87,56 +101,132 @@ class Sistema:
         self.ventas = []
     
     def registrar_venta(self):
-        id = input("Ingrese ID del producto: ")
-        producto = self.inventario.buscar_por_id(id)
-        if not producto:
-            print("Producto no encontrado.")
-            return
-        
-        try:
-            cantidad = int(input("Cantidad a vender: "))
-        except ValueError:
-            print("Cantidad inválida.")
+        # Mostrar categorías disponibles
+        categorias = self.inventario.obtener_categorias()
+        if not categorias:
+            print("No hay categorías registradas.")
             return
             
-        if producto.stock < cantidad:
-            print("Stock insuficiente.")
-        else:
-            producto.stock -= cantidad
-            venta = Venta(producto, cantidad)
-            self.ventas.append(venta)
-            print("Venta registrada con éxito.")
-            print(venta)
+        print("\nCategorías disponibles:")
+        for i, categoria in enumerate(categorias, 1):
+            print(f"{i}. {categoria}")
+            
+        try:
+            opcion_categoria = int(input("\nSeleccione el número de categoría: "))
+            if opcion_categoria < 1 or opcion_categoria > len(categorias):
+                print("Categoría no válida.")
+                return
+                
+            categoria_seleccionada = categorias[opcion_categoria - 1]
+            
+            # Mostrar productos de la categoría
+            productos_categoria = self.inventario.buscar_por_categoria(categoria_seleccionada)
+            if not productos_categoria:
+                print("No hay productos en esta categoría.")
+                return
+                
+            print(f"\nProductos en {categoria_seleccionada}:")
+            for i, producto in enumerate(productos_categoria, 1):
+                print(f"{i}. ID: {producto.id} - {producto.nombre} - Stock: {producto.stock}")
+                
+            try:
+                id_producto = input("\nIngrese el ID del producto: ")
+                producto = self.inventario.buscar_por_id(id_producto)
+                
+                if not producto:
+                    print("Producto no encontrado.")
+                    return
+                    
+                cantidad = int(input("Cantidad a vender: "))
+                
+                if producto.stock < cantidad:
+                    print("Stock insuficiente.")
+                    return
+                    
+                producto.stock -= cantidad
+                venta = Venta(producto, cantidad)
+                self.ventas.append(venta)
+                print("\nVenta registrada con éxito.")
+                print(venta)
+                
+            except ValueError:
+                print("Cantidad inválida.")
+                
+        except ValueError:
+            print("Opción no válida.")
     
     def mostrar_reporte_ventas(self):
         print("\n--- Reporte de Ventas ---")
         
-        # Generar código único para este reporte
-        codigo_reporte = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-        fecha_actual = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre_archivo = f"reporte_{fecha_actual}_{codigo_reporte}.png"
-        
-        # Contenido del QR: incluye fecha, hora y código único
-        contenido_qr = f"""Reporte de Ventas
-            Fecha: {datetime.now().strftime('%Y-%m-%d')}
-            Hora: {datetime.now().strftime('%H:%M:%S')}
-            Código: {codigo_reporte}
-            Total de Ventas: {len(self.ventas)}
-            Total Ingresos: S/. {sum(v.total for v in self.ventas):.2f}
-            """
-
-        
-        # Generar el código QR
-        generar_codigo_qr(contenido_qr, nombre_archivo)
-        
-        # Mostrar ventas
-        for venta in self.ventas:
-            print(venta)
+        # Mostrar categorías registradas
+        categorias = self.inventario.obtener_categorias()
+        if categorias:
+            print("\nCategorías registradas:")
+            for categoria in categorias:
+                print(f"- {categoria}")
+        else:
+            print("\nNo hay categorías registradas.")
             
-        total = sum(v.total for v in self.ventas)
-        print(f"\nTotal de ingresos: S/. {total:.2f}")
-        print(f"\nCódigo QR generado: {nombre_archivo}")
-        print(f"Código único del reporte: {codigo_reporte}")
+        # Mostrar IDs de ventas
+        if self.ventas:
+            print("\nIDs de ventas registradas:")
+            for i, venta in enumerate(self.ventas, 1):
+                print(f"{i}. ID: {venta.producto.id} - Producto: {venta.producto.nombre}")
+        else:
+            print("\nNo hay ventas registradas.")
+            
+        # Generar PDF filtrado
+        self.generar_pdf_ventas_filtrado()
+    
+    def generar_pdf_ventas_filtrado(self):
+        # Solicitar filtros
+        print("\nFiltros para el reporte:")
+        print("1. Por categoría")
+        print("2. Por mes")
+        print("3. Por día")
+        print("4. Sin filtros")
+        
+        try:
+            opcion_filtro = int(input("Seleccione el filtro (1-4): "))
+            
+            ventas_filtradas = self.ventas
+            nombre_archivo = "reporte_ventas"
+            
+            if opcion_filtro == 1:
+                categorias = self.inventario.obtener_categorias()
+                print("\nCategorías disponibles:")
+                for i, categoria in enumerate(categorias, 1):
+                    print(f"{i}. {categoria}")
+                categoria_idx = int(input("Seleccione el número de categoría: ")) - 1
+                categoria_seleccionada = categorias[categoria_idx]
+                ventas_filtradas = [v for v in self.ventas if v.producto.categoria == categoria_seleccionada]
+                nombre_archivo += f"_{categoria_seleccionada}"
+                
+            elif opcion_filtro == 2:
+                mes = int(input("Ingrese el mes (1-12): "))
+                ventas_filtradas = [v for v in self.ventas if v.fecha.month == mes]
+                nombre_archivo += f"_mes_{mes}"
+                
+            elif opcion_filtro == 3:
+                dia = int(input("Ingrese el día (1-31): "))
+                ventas_filtradas = [v for v in self.ventas if v.fecha.day == dia]
+                nombre_archivo += f"_dia_{dia}"
+                
+            # Generar PDF
+            pdf = PDFVentas()
+            pdf.add_page()
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 10, f"Reporte de Ventas - {datetime.now().strftime('%d/%m/%Y')}", 0, 1)
+            pdf.ln(10)
+            
+            for venta in ventas_filtradas:
+                pdf.add_venta(venta)
+            
+            pdf.output(f"{nombre_archivo}.pdf")
+            print(f"\nPDF generado exitosamente: {nombre_archivo}.pdf")
+            
+        except ValueError:
+            print("Opción no válida.")
 
 def main():
     sistema = Sistema()
