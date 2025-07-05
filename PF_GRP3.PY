@@ -13,7 +13,7 @@ def limpiar_pantalla():
 
 class Producto:
     def __init__(self, id=None, nombre="", categoria="", precio=0.0, stock=0):
-        self.id = id if id else str(uuid.uuid4())[:8]  # ID aleatorio de 8 caracteres
+        self.id = id if id else ''.join(random.choices('0123456789', k=8))
         self.nombre = nombre
         self.categoria = categoria
         self.precio = precio
@@ -87,12 +87,6 @@ class Inventario:
     
     def buscar_por_nombre(self, nombre):
         return [p for p in self.productos if nombre.lower() in p.nombre.lower()]
-    
-    def buscar_por_categoria(self, categoria):
-        return [p for p in self.productos if p.categoria.lower() == categoria.lower()]
-    
-    def obtener_categorias(self):
-        return list(set(p.categoria for p in self.productos))
     
     def eliminar_producto(self, id):
         producto = self.buscar_por_id(id)
@@ -311,6 +305,7 @@ def main():
             id = input("Ingrese ID del producto: ")
             producto = sistema.inventario.buscar_por_id(id)
             print(producto if producto else "Producto no encontrado.")
+            input("\nPresione Enter para volver al menú...")
             
         elif opcion == "4":
             nombre = input("Ingrese nombre o parte del nombre: ")
@@ -320,6 +315,7 @@ def main():
                     print(p)
             else:
                 print("No se encontraron coincidencias.")
+            input("\nPresione Enter para volver al menú...")
                 
         elif opcion == "5":
             id = input("Ingrese ID del producto a eliminar: ")
