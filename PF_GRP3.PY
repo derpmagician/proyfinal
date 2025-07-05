@@ -1,17 +1,19 @@
 import string
+import os
+import random
+import pandas as pd
+import jinja2
+import uuid
 from fpdf import FPDF
 from datetime import datetime
 
+
+def limpiar_pantalla():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
 class Producto:
-    """
-    Clase que representa un producto en el inventario.
-    Cada producto tiene un ID, nombre, categoría, precio y stock.
-    El ID debe ser único y no puede estar vacío.
-    Los campos nombre, categoría, precio y stock también deben ser válidos.
-    El precio  y el stock no pueden ser negativos.
-    """
-    def __init__(self, id, nombre, categoria, precio, stock):
-        self.id = id
+    def __init__(self, id=None, nombre="", categoria="", precio=0.0, stock=0):
+        self.id = id if id else str(uuid.uuid4())[:8]  # ID aleatorio de 8 caracteres
         self.nombre = nombre
         self.categoria = categoria
         self.precio = precio
@@ -21,43 +23,61 @@ class Producto:
         return f"{self.id} - {self.nombre} ({self.categoria}) - S/. {self.precio:.2f} - Stock: {self.stock}"
 
 class Inventario:
-    """
-    Clase que representa un inventario de productos.
-    Permite agregar, listar, buscar, eliminar y editar productos.
-    Cada producto tiene un ID, nombre, categoría, precio y stock.
-    """
     def __init__(self):
         self.productos = []
-    
+        
     def agregar_producto(self, producto):
-        # Validar que el producto no tenga campos vacíos
         if not producto.id or not producto.id.strip():
             print("Error: El producto debe tener un ID válido.")
-            return
+            return False
+        
         if not producto.nombre or not producto.nombre.strip():
             print("Error: El producto debe tener un nombre válido.")
-            return
+            return False
+            
         if not producto.categoria or not producto.categoria.strip():
             print("Error: El producto debe tener una categoría válida.")
-            return
+            return False
+            
         if producto.precio < 0:
             print("Error: El precio no puede ser negativo.")
-            return
+            return False
+            
         if producto.stock < 0:
             print("Error: El stock no puede ser negativo.")
-            return
+            return False
             
         if any(p.id == producto.id for p in self.productos):
             print("Error: ID duplicado. No se puede agregar el producto.")
-        else:
-            self.productos.append(producto)
-            print("Producto agregado con éxito.")
+            return False
+            
+        self.productos.append(producto)
+        print("Producto agregado con éxito.")
+        return True
     
     def listar_productos(self):
-        if not self.productos:
+        if not self.productos:  
             print("No hay productos en inventario.")
-        for producto in self.productos:
-            print(producto)
+            return
+    
+    # Crear DataFrame con los productos 
+        df = pd.DataFrame({
+            'ID': [p.id for p in self   .productos],
+            'Categoria': [p.categoria for p in self.productos],
+            'Producto': [p.nombre for p in self.productos],
+            'Precio': [p.precio for p in self.productos],
+            'Stock': [p.stock for p in self.productos]
+        })
+    
+    # Crear archivo Excel
+        ListaProductos = f"lista_productos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        df.style.format({
+        'Precio': 'S/. {0:,.2f}',
+        'Stock': '{0:,.0f}'
+        }).to_excel(ListaProductos, index=False)
+
+        print(f"Archivo generado exitosamente: {ListaProductos}")
     
     def buscar_por_id(self, id):
         for producto in self.productos:
@@ -79,40 +99,41 @@ class Inventario:
         if producto:
             self.productos.remove(producto)
             print("Producto eliminado.")
-        else:
-            print("Producto no encontrado.")
+            return True
+        print("Producto no encontrado.")
+        return False
     
-    def editar_producto(self, id, nuevo_nombre, nueva_categoria, nuevo_precio, nuevo_stock):
+    def editar_producto(self, id, nuevo_nombre=None, nueva_categoria=None, 
+                       nuevo_precio=None, nuevo_stock=None):
         producto = self.buscar_por_id(id)
-        if producto:
-            # Validar que los nuevos valores no estén vacíos
-            if not nuevo_nombre or not nuevo_nombre.strip():
-                print("Error: El nombre no puede estar vacío.")
-                return
-            if not nueva_categoria or not nueva_categoria.strip():
-                print("Error: La categoría no puede estar vacía.")
-                return
-            if nuevo_precio < 0:
-                print("Error: El precio no puede ser negativo.")
-                return
-            if nuevo_stock < 0:
-                print("Error: El stock no puede ser negativo.")
-                return
-                
-            producto.nombre = nuevo_nombre.strip()
-            producto.categoria = nueva_categoria.strip()
-            producto.precio = nuevo_precio
-            producto.stock = nuevo_stock
-            print("Producto actualizado.")
-        else:
+        if not producto:
             print("Producto no encontrado.")
+            return False
+            
+        if nuevo_nombre and nuevo_nombre.strip():
+            producto.nombre = nuevo_nombre.strip()
+            
+        if nueva_categoria and nueva_categoria.strip():
+            producto.categoria = nueva_categoria.strip()
+            
+        if nuevo_precio is not None:
+            if nuevo_precio >= 0:
+                producto.precio = nuevo_precio
+            else:
+                print("Error: El precio no puede ser negativo.")
+                return False
+                
+        if nuevo_stock is not None:
+            if nuevo_stock >= 0:
+                producto.stock = nuevo_stock
+            else:
+                print("Error: El stock no puede ser negativo.")
+                return False
+                
+        print("Producto actualizado.")
+        return True
 
 class Venta:
-    """
-    Clase que representa una venta de un producto.
-    Contiene información del producto, cantidad vendida,
-    fecha de la venta y total de la venta.
-    """
     def __init__(self, producto, cantidad):
         self.producto = producto
         self.cantidad = cantidad
@@ -123,21 +144,17 @@ class Venta:
         return f"{self.fecha.strftime('%Y-%m-%d %H:%M')} - {self.producto.nombre} x{self.cantidad} - Total: S/. {self.total:.2f}"
 
 class PDFVentas(FPDF):
-    """
-    Clase que extiende FPDF para generar un PDF de ventas.
-    Incluye encabezado, pie de página y método para agregar ventas.
-    """
     def header(self):
         self.set_font('Arial', 'B', 15)
         self.cell(80)
         self.cell(60, 10, 'Reporte de Ventas', 1, 0, 'C')
         self.ln(20)
-    
+
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
-    
+
     def add_venta(self, venta):
         self.set_font('Arial', '', 12)
         self.cell(0, 10, f"Fecha: {venta.fecha.strftime('%d/%m/%Y %H:%M')}", 0, 1)
@@ -147,21 +164,28 @@ class PDFVentas(FPDF):
         self.ln(10)
 
 class Sistema:
-    """
-    Clase principal del sistema de inventario y ventas.
-    Permite registrar productos, realizar ventas y generar reportes.
-    """
     def __init__(self):
         self.inventario = Inventario()
-        self.ventas = []
+        # Productos pre-registrados
+        productos_iniciales = [
+            Producto(nombre="Laptop Gaming", categoria="Electrónica", precio=2500.0, stock=5),
+            Producto(nombre="Mouse Inalámbrico", categoria="Electrónica", precio=50.0, stock=10),
+            Producto(nombre="Monitor LED", categoria="Electrónica", precio=300.0, stock=3),
+            Producto(nombre="Camiseta Polo", categoria="Ropa", precio=45.0, stock=15),
+            Producto(nombre="Jean Clásico", categoria="Ropa", precio=70.0, stock=8),
+            Producto(nombre="Zapatillas Deportivas", categoria="Calzado", precio=120.0, stock=12),
+            Producto(nombre="Botas Mujer", categoria="Calzado", precio=180.0, stock=6),
+        ]
+        
+        for producto in productos_iniciales:
+            self.inventario.agregar_producto(producto)
     
     def registrar_venta(self):
-        # Mostrar categorías disponibles
         categorias = self.inventario.obtener_categorias()
         if not categorias:
             print("\n====== No hay categorías registradas ===")
             return
-            
+        
         print("\nCategorías disponibles:")
         for i, categoria in enumerate(categorias, 1):
             print(f"{i}. {categoria}")
@@ -171,121 +195,87 @@ class Sistema:
             if opcion_categoria < 1 or opcion_categoria > len(categorias):
                 print("====== Opción no válida ===")
                 return
-                
-            categoria_seleccionada = categorias[opcion_categoria - 1]
             
-            # Mostrar productos de la categoría
+            categoria_seleccionada = categorias[opcion_categoria - 1]
             productos_categoria = self.inventario.buscar_por_categoria(categoria_seleccionada)
+            
             if not productos_categoria:
                 print("====== No hay productos en esta categoría ===")
                 return
-                
+            
             print(f"\nProductos en {categoria_seleccionada}:")
             for i, producto in enumerate(productos_categoria, 1):
                 print(f"{i}. ID: {producto.id} - {producto.nombre} - Stock: {producto.stock}")
-                
-            try:
-                id_producto = input("\nIngrese el ID del producto: ")
-                producto = self.inventario.buscar_por_id(id_producto)
-                
-                if not producto:
-                    print("====== Producto no encontrado ===")
-                    return
-                    
-                cantidad = int(input("Cantidad a vender: "))
-                
-                if producto.stock < cantidad:
-                    print("====== Stock insuficiente para la venta ===")
-                    return
-                    
-                producto.stock -= cantidad
-                venta = Venta(producto, cantidad)
-                self.ventas.append(venta)
-                print("====== Venta registrada con éxito ===")
-                print(venta)
-                
-            except ValueError:
-                print("Cantidad inválida.")
-                
+            
+            id_producto = input("\nIngrese el ID del producto: ")
+            producto = self.inventario.buscar_por_id(id_producto)
+            
+            if not producto:
+                print("====== Producto no encontrado ===")
+                return
+            
+            cantidad = int(input("Cantidad a vender: "))
+            
+            if producto.stock < cantidad:
+                print("====== Stock insuficiente para la venta ===")
+                return
+            
+            producto.stock -= cantidad
+            venta = Venta(producto, cantidad)
+            print("====== Venta registrada con éxito ===")
+            print(venta)
         except ValueError:
-            print("Opción no válida.")
+            print("Entrada inválida.")
+    
+    def encontrar_combinaciones_para_presupuesto(self, presupuesto):
+        productos = [p for p in self.inventario.productos 
+                    if p.precio <= presupuesto and p.stock > 0]
+        
+        soluciones = []
+        
+        def backtrack(index, seleccionados, total):
+            if total > presupuesto:
+                return
+            if total == presupuesto:
+                soluciones.append(list(seleccionados))
+                return
+            
+            for i in range(index, len(productos)):
+                p = productos[i]
+                seleccionados.append(p)
+                backtrack(i + 1, seleccionados, total + p.precio)
+                seleccionados.pop()
+                
+            # Intentamos usar menos productos pero más caros
+            if index < len(productos) - 1:
+                backtrack(index + 1, seleccionados, total)
+        
+        backtrack(0, [], 0)
+        return soluciones
     
     def mostrar_reporte_ventas(self):
         print("\n--- Reporte de Ventas ---")
-        
-        # Mostrar categorías registradas
         categorias = self.inventario.obtener_categorias()
+        
         if categorias:
             print("\nCategorías registradas:")
             for categoria in categorias:
                 print(f"- {categoria}")
         else:
             print("\nNo hay categorías registradas.")
-            
-        # Mostrar IDs de ventas
-        if self.ventas:
+        
+        if hasattr(self, 'ventas') and self.ventas:
             print("\nIDs de ventas registradas:")
             for i, venta in enumerate(self.ventas, 1):
                 print(f"{i}. ID: {venta.producto.id} - Producto: {venta.producto.nombre}")
         else:
             print("\nNo hay ventas registradas.")
-            
-        # Generar PDF filtrado
-        self.generar_pdf_ventas_filtrado()
-    
-    def generar_pdf_ventas_filtrado(self):
-        # Solicitar filtros
-        print("\nFiltros para el reporte:")
-        print("1. Por categoría")
-        print("2. Por mes")
-        print("3. Por día")
-        print("4. Sin filtros")
-        
-        try:
-            opcion_filtro = int(input("Seleccione el filtro (1-4): "))
-            
-            ventas_filtradas = self.ventas
-            nombre_archivo = "reporte_ventas"
-            
-            if opcion_filtro == 1:
-                categorias = self.inventario.obtener_categorias()
-                print("\nCategorías disponibles:")
-                for i, categoria in enumerate(categorias, 1):
-                    print(f"{i}. {categoria}")
-                categoria_idx = int(input("Seleccione el número de categoría: ")) - 1
-                categoria_seleccionada = categorias[categoria_idx]
-                ventas_filtradas = [v for v in self.ventas if v.producto.categoria == categoria_seleccionada]
-                nombre_archivo += f"_{categoria_seleccionada}"
-                
-            elif opcion_filtro == 2:
-                mes = int(input("Ingrese el mes (1-12): "))
-                ventas_filtradas = [v for v in self.ventas if v.fecha.month == mes]
-                nombre_archivo += f"_mes_{mes}"
-                
-            elif opcion_filtro == 3:
-                dia = int(input("Ingrese el día (1-31): "))
-                ventas_filtradas = [v for v in self.ventas if v.fecha.day == dia]
-                nombre_archivo += f"_dia_{dia}"
-                
-            # Generar PDF
-            pdf = PDFVentas()
-            pdf.add_page()
-            pdf.set_font('Arial', 'B', 12)
-            pdf.cell(0, 10, f"Reporte de Ventas - {datetime.now().strftime('%d/%m/%Y')}", 0, 1)
-            pdf.ln(10)
-            
-            for venta in ventas_filtradas:
-                pdf.add_venta(venta)
-            
-            pdf.output(f"{nombre_archivo}.pdf")
-            print(f"\nPDF generado exitosamente: {nombre_archivo}.pdf")
-            
-        except ValueError:
-            print("Opción no válida.")
 
 def main():
     sistema = Sistema()
+    
     while True:
+        limpiar_pantalla()
         print("\n--- Sistema de Inventario ---")
         print("1. Agregar producto")
         print("2. Listar productos")
@@ -294,53 +284,28 @@ def main():
         print("5. Eliminar producto")
         print("6. Editar producto")
         print("7. Registrar venta")
-        print("8. Reporte de ventas")
+        print("8. Mostrar reporte de ventas")
+        print("9. Encontrar combinaciones según presupuesto")
         print("0. Salir")
         
         opcion = input("Seleccione una opción: ")
         
         if opcion == "1":
-            id = input("ID: ").strip()
-            if not id:
-                print("Error: El ID no puede estar vacío.")
-                continue
-                
             nombre = input("Nombre: ").strip()
-            if not nombre:
-                print("Error: El nombre no puede estar vacío.")
-                continue
-                
             categoria = input("Categoría: ").strip()
-            if not categoria:
-                print("Error: La categoría no puede estar vacía.")
-                continue
-                
             try:
-                precio_input = input("Precio: ").strip()
-                if not precio_input:
-                    print("Error: El precio no puede estar vacío.")
-                    continue
-                precio = float(precio_input)
-                if precio < 0:
-                    print("Error: El precio no puede ser negativo.")
-                    continue
-                    
-                stock_input = input("Stock: ").strip()
-                if not stock_input:
-                    print("Error: El stock no puede estar vacío.")
-                    continue
-                stock = int(stock_input)
-                if stock < 0:
-                    print("Error: El stock no puede ser negativo.")
-                    continue
+                precio = float(input("Precio: ").strip())
+                stock = int(input("Stock: ").strip())
+                
+                producto = Producto(nombre=nombre, categoria=categoria, 
+                                  precio=precio, stock=stock)
+                sistema.inventario.agregar_producto(producto)
             except ValueError:
                 print("Error en tipo de datos.")
-                continue
-            producto = Producto(id, nombre, categoria, precio, stock)
-            sistema.inventario.agregar_producto(producto)
-            
+                
         elif opcion == "2":
             sistema.inventario.listar_productos()
+            input("\nPresione Enter para volver al menú...")
             
         elif opcion == "3":
             id = input("Ingrese ID del producto: ")
@@ -362,52 +327,41 @@ def main():
             
         elif opcion == "6":
             id = input("ID del producto a editar: ").strip()
-            if not id:
-                print("Error: El ID no puede estar vacío.")
-                continue
-                
             nuevo_nombre = input("Nuevo nombre: ").strip()
-            if not nuevo_nombre:
-                print("Error: El nombre no puede estar vacío.")
-                continue
-                
             nueva_categoria = input("Nueva categoría: ").strip()
-            if not nueva_categoria:
-                print("Error: La categoría no puede estar vacía.")
-                continue
-                
             try:
-                precio_input = input("Nuevo precio: ").strip()
-                if not precio_input:
-                    print("Error: El precio no puede estar vacío.")
-                    continue
-                nuevo_precio = float(precio_input)
-                if nuevo_precio < 0:
-                    print("Error: El precio no puede ser negativo.")
-                    continue
-                    
-                stock_input = input("Nuevo stock: ").strip()
-                if not stock_input:
-                    print("Error: El stock no puede estar vacío.")
-                    continue
-                nuevo_stock = int(stock_input)
-                if nuevo_stock < 0:
-                    print("Error: El stock no puede ser negativo.")
-                    continue
+                nuevo_precio = float(input("Nuevo precio: ").strip())
+                nuevo_stock = int(input("Nuevo stock: ").strip())
+                sistema.inventario.editar_producto(id, nuevo_nombre, nueva_categoria, 
+                                                 nuevo_precio, nuevo_stock)
             except ValueError:
                 print("Error en tipo de datos.")
-                continue
-            sistema.inventario.editar_producto(id, nuevo_nombre, nueva_categoria, nuevo_precio, nuevo_stock)
-            
+                
         elif opcion == "7":
             sistema.registrar_venta()
             
         elif opcion == "8":
             sistema.mostrar_reporte_ventas()
             
+        elif opcion == "9":
+            try:
+                presupuesto = float(input("Ingrese el presupuesto disponible: "))
+                combinaciones = sistema.encontrar_combinaciones_para_presupuesto(presupuesto)
+                if combinaciones:
+                    print(f"\nSe encontraron {len(combinaciones)} combinaciones:")
+                    for i, combo in enumerate(combinaciones, 1):
+                        nombres = ', '.join(p.nombre for p in combo)
+                        total = sum(p.precio for p in combo)
+                        print(f"{i}. {nombres} -> Total: S/. {total:.2f}")
+                else:
+                    print("No se encontraron combinaciones.")
+            except ValueError:
+                print("Presupuesto inválido.")
+                
         elif opcion == "0":
             print("Saliendo...")
             break
+            
         else:
             print("Opción no válida.")
 
