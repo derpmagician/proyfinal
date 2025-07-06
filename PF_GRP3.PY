@@ -448,7 +448,7 @@ def main():
         
         if opcion == "1":
             nombre = input("Nombre: ").strip()
-            categoria = input("Categoría: ").strip()
+            categoria = input("Categoría (Electrónica, Ropa, Calzado): ").strip()
             try:
                 precio = float(input("Precio: ").strip())
                 stock = int(input("Stock: ").strip())
