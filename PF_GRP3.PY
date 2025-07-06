@@ -1,178 +1,18 @@
 import string
 import os
 import random
-import pandas as pd
 import jinja2
 import uuid
-from fpdf import FPDF
 from datetime import datetime
 
+from clases.producto import Producto  
+from clases.inventario import Inventario  
+from clases.venta import Venta 
+from clases.pdf_ventas import PDFVentas
 
 def limpiar_pantalla():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-class Producto:
-    def __init__(self, id=None, nombre="", categoria="", precio=0.0, stock=0):
-        self.id = id if id else ''.join(random.choices('0123456789', k=8))
-        self.nombre = nombre
-        self.categoria = categoria
-        self.precio = precio
-        self.stock = stock
-    
-    def __str__(self):
-        return f"{self.id} - {self.nombre} ({self.categoria}) - S/. {self.precio:.2f} - Stock: {self.stock}"
-
-class Inventario:
-    def __init__(self):
-        self.productos = []
-        
-    def agregar_producto(self, producto):
-        if not producto.id or not producto.id.strip():
-            print("Error: El producto debe tener un ID válido.")
-            return False
-        
-        if not producto.nombre or not producto.nombre.strip():
-            print("Error: El producto debe tener un nombre válido.")
-            return False
-            
-        if not producto.categoria or not producto.categoria.strip():
-            print("Error: El producto debe tener una categoría válida.")
-            return False
-            
-        if producto.precio < 0:
-            print("Error: El precio no puede ser negativo.")
-            return False
-            
-        if producto.stock < 0:
-            print("Error: El stock no puede ser negativo.")
-            return False
-            
-        if any(p.id == producto.id for p in self.productos):
-            print("Error: ID duplicado. No se puede agregar el producto.")
-            return False
-            
-        self.productos.append(producto)
-        print("Producto agregado con éxito.")
-        return True
-    
-    def listar_productos(self):
-        if not self.productos:  
-            print("No hay productos en inventario.")
-            return
-    
-    # Crear DataFrame con los productos 
-        df = pd.DataFrame({
-            'ID': [p.id for p in self   .productos],
-            'Categoria': [p.categoria for p in self.productos],
-            'Producto': [p.nombre for p in self.productos],
-            'Precio': [p.precio for p in self.productos],
-            'Stock': [p.stock for p in self.productos]
-        })
-    
-    # Crear archivo Excel
-        ListaProductos = f"lista_productos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-
-        df.style.format({
-        'Precio': 'S/. {0:,.2f}',
-        'Stock': '{0:,.0f}'
-        }).to_excel(ListaProductos, index=False)
-
-        print(f"Archivo generado exitosamente: {ListaProductos}")
-    
-    def buscar_por_id(self, id):
-        for producto in self.productos:
-            if producto.id == id:
-                return producto
-        return None
-    
-    def buscar_por_nombre(self, nombre):
-        return [p for p in self.productos if nombre.lower() in p.nombre.lower()]
-    
-    def obtener_categorias(self):
-        """Retorna una lista única de categorías disponibles."""
-        return list(set(p.categoria for p in self.productos))
-    
-    def buscar_por_categoria(self, categoria):
-        """Retorna una lista de productos que pertenecen a la categoría especificada."""
-        return [p for p in self.productos if p.categoria == categoria]
-    
-    def eliminar_producto(self, id):
-        producto = self.buscar_por_id(id)
-        if producto:
-            self.productos.remove(producto)
-            print("Producto eliminado.")
-            return True
-        print("Producto no encontrado.")
-        return False
-    
-    def editar_producto(self, id, nuevo_nombre=None, nueva_categoria=None, 
-                       nuevo_precio=None, nuevo_stock=None):
-        producto = self.buscar_por_id(id)
-        if not producto:
-            print("Producto no encontrado.")
-            return False
-            
-        if nuevo_nombre and nuevo_nombre.strip():
-            producto.nombre = nuevo_nombre.strip()
-            
-        if nueva_categoria and nueva_categoria.strip():
-            producto.categoria = nueva_categoria.strip()
-            
-        if nuevo_precio is not None:
-            if nuevo_precio >= 0:
-                producto.precio = nuevo_precio
-            else:
-                print("Error: El precio no puede ser negativo.")
-                return False
-                
-        if nuevo_stock is not None:
-            if nuevo_stock >= 0:
-                producto.stock = nuevo_stock
-            else:
-                print("Error: El stock no puede ser negativo.")
-                return False
-                
-        print("Producto actualizado.")
-        return True
-
-class Venta:
-    def __init__(self, fecha, id_venta, categoria, productos, total):
-        self.fecha = fecha
-        self.id_venta = id_venta
-        self.categoria = categoria
-        self.productos = productos  # Lista de tuplas (nombre, id, precio, cantidad, categoria)
-        self.total = total
-    
-    def __str__(self):
-        fecha_str = self.fecha.strftime('%d/%m/%Y %H:%M')
-        productos_str = '\n'.join(
-            f"{nombre} / {id_prod} / S/. {precio:.2f} x {cant}"
-            for nombre, id_prod, precio, cant, _ in self.productos  # Agregamos _ para ignorar la categoría
-        )
-        return f"""
-Fecha: {fecha_str}
-ID: {self.id_venta}
-Categoria: {self.categoria}
-{productos_str}
-Precio total: S/. {self.total:.2f}
-"""
-
-class PDFVentas(FPDF):
-    def header(self):
-        self.set_font('Arial', 'B', 15)
-        self.cell(80)
-        self.cell(75, 10, 'VENTAS REGISTRADAS', 1, 0, 'C')
-        self.ln(20)
-        
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
-        
-    def add_venta(self, venta):
-        self.set_font('Arial', '', 12)
-        self.multi_cell(0, 10, str(venta))
-        self.ln(10)
 
 class Sistema:
     def __init__(self):
@@ -426,6 +266,7 @@ class Sistema:
         nombre_archivo = f"reporte_ventas_{fecha_actual.strftime('%Y%m%d_%H%M%S')}.pdf"
         pdf.output(nombre_archivo)
         print(f"\nReporte generado exitosamente: {nombre_archivo}")
+
 
 def main():
     sistema = Sistema()
