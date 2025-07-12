@@ -152,7 +152,10 @@ class Sistema:
         
             categoria_seleccionada = categorias[opcion_categoria - 1]
         
-            # Filtrar productos por categoría y presupuesto
+            # Filtrar productos que cumplan las condiciones:
+            # 1. Pertenezcan a la categoría seleccionada
+            # 2. Su precio individual no exceda el presupuesto
+            # 3. Tengan stock disponible
             productos = [p for p in self.inventario.productos 
                         if p.categoria == categoria_seleccionada and 
                         p.precio <= presupuesto and 
@@ -165,20 +168,38 @@ class Sistema:
             soluciones = []
         
             def backtrack(index, seleccionados, total):
+                """
+                Función recursiva que implementa el algoritmo de backtracking
+                para encontrar combinaciones que sumen exactamente el presupuesto.
+                
+                Args:
+                    index (int): Índice actual en la lista de productos
+                    seleccionados (list): Lista de productos seleccionados hasta ahora
+                    total (float): Suma acumulada de precios de productos seleccionados
+                """
+                # Caso base 1: Si el total excede el presupuesto, podar esta rama
                 if total > presupuesto:
                     return
+                # Caso base 2: Si encontramos una combinación exacta, guardarla
                 if total == presupuesto:
-                    soluciones.append(list(seleccionados))
+                    soluciones.append(list(seleccionados)) # Crear copia de la lista
                     return
+                # Explorar todas las posibles combinaciones desde el índice actual
                 for i in range(index, len(productos)):
                     p = productos[i]
+                    # Solo considerar productos con stock disponible
                     if p.stock > 0:
+                        # Agregar producto a la selección actual
                         seleccionados.append(p)
+                        # Reducir stock temporalmente para evitar duplicados
                         p.stock -= 1
+                        # Llamada recursiva: seguir explorando desde el mismo índice
+                        # (permite múltiples unidades del mismo producto)
                         backtrack(i, seleccionados, total + p.precio)
-                        seleccionados.pop()
-                        p.stock += 1
-                    
+                        # Backtrack: deshacer los cambios para explorar otras opciones
+                        seleccionados.pop() # Quitar producto de la selección
+                        p.stock += 1 # Restaurar stock original
+            # Iniciar el algoritmo de backtracking    
             backtrack(0, [], 0)
         
             # Limitar a máximo 3 combinaciones
@@ -190,7 +211,9 @@ class Sistema:
             
             print(f"\nSe encontraron {len(soluciones)} combinaciones:")
             for i, combo in enumerate(soluciones, 1):
+                # Crear string con nombres de productos separados por comas
                 nombres = ', '.join(p.nombre for p in combo)
+                # Calcular total de la combinación
                 total = sum(p.precio for p in combo)
                 print(f"{i}. {nombres} -> Total: S/. {total:.2f}")
             
