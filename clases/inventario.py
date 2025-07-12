@@ -39,16 +39,16 @@ class Inventario:
             print("No hay productos en inventario.")
             return
     
-    # Crear DataFrame con los productos 
+        # Crear DataFrame con los productos 
         df = pd.DataFrame({
-            'ID': [p.id for p in self   .productos],
+            'ID': [p.id for p in self.productos],
             'Categoria': [p.categoria for p in self.productos],
             'Producto': [p.nombre for p in self.productos],
             'Precio': [p.precio for p in self.productos],
             'Stock': [p.stock for p in self.productos]
         })
     
-    # Crear archivo Excel
+        # Crear archivo Excel
         ListaProductos = f"lista_productos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
         df.style.format({

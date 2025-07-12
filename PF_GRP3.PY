@@ -23,10 +23,19 @@ class Sistema:
             Producto(nombre="Laptop Gaming", categoria="Electrónica", precio=2500.0, stock=5),
             Producto(nombre="Mouse Inalámbrico", categoria="Electrónica", precio=50.0, stock=10),
             Producto(nombre="Monitor LED", categoria="Electrónica", precio=300.0, stock=3),
+            Producto(nombre="Tablet Android", categoria="Electrónica", precio=400.0, stock=4),
+            Producto(nombre="Smartphone", categoria="Electrónica", precio=800.0, stock=5),
+            Producto(nombre="Cargador USB-C", categoria="Electrónica", precio=25.0, stock=15),
+            Producto(nombre="Parlante Bluetooth", categoria="Electrónica", precio=180.0, stock=8),
             Producto(nombre="Camiseta Polo", categoria="Ropa", precio=45.0, stock=15),
             Producto(nombre="Jean Clásico", categoria="Ropa", precio=70.0, stock=8),
+            Producto(nombre="Sudadera con Capucha", categoria="Ropa", precio=65.0, stock=10),
+            Producto(nombre="Pantalón Deportivo", categoria="Ropa", precio=55.0, stock=14),
+            Producto(nombre="Vestido Casual", categoria="Ropa", precio=85.0, stock=9),
             Producto(nombre="Zapatillas Deportivas", categoria="Calzado", precio=120.0, stock=12),
             Producto(nombre="Botas Mujer", categoria="Calzado", precio=180.0, stock=6),
+            Producto(nombre="Sandalias Verano", categoria="Calzado", precio=60.0, stock=15),
+            Producto(nombre="Botines Cuero", categoria="Calzado", precio=200.0, stock=5),
         ]
         
         for producto in productos_iniciales:
@@ -124,7 +133,7 @@ class Sistema:
         print(venta)
     
     def encontrar_combinaciones_para_presupuesto(self, presupuesto):
-    # Obtener categorías disponibles
+        # Obtener categorías disponibles
         categorias = self.inventario.obtener_categorias()
         if not categorias:
             print("No hay categorías disponibles.")
@@ -135,7 +144,7 @@ class Sistema:
             print(f"{i}. {categoria}")
     
         try:
-        # Seleccionar categoría
+            # Seleccionar categoría
             opcion_categoria = int(input("\nSeleccione el número de categoría: "))
             if opcion_categoria < 1 or opcion_categoria > len(categorias):
                 print("Opción no válida.")
@@ -143,7 +152,7 @@ class Sistema:
         
             categoria_seleccionada = categorias[opcion_categoria - 1]
         
-        # Filtrar productos por categoría y presupuesto
+            # Filtrar productos por categoría y presupuesto
             productos = [p for p in self.inventario.productos 
                         if p.categoria == categoria_seleccionada and 
                         p.precio <= presupuesto and 
@@ -172,7 +181,7 @@ class Sistema:
                     
             backtrack(0, [], 0)
         
-        # Limitar a máximo 3 combinaciones
+            # Limitar a máximo 3 combinaciones
             soluciones = soluciones[:3]
         
             if not soluciones:
@@ -351,14 +360,14 @@ def main():
             try:
                 presupuesto = float(input("Ingrese el presupuesto disponible: "))
                 combinaciones = sistema.encontrar_combinaciones_para_presupuesto(presupuesto)
-                if combinaciones:
-                    print(f"\nSe encontraron {len(combinaciones)} combinaciones:")
-                    for i, combo in enumerate(combinaciones, 1):
-                        nombres = ', '.join(p.nombre for p in combo)
-                        total = sum(p.precio for p in combo)
-                        print(f"{i}. {nombres} -> Total: S/. {total:.2f}")
-                else:
-                    print("No se encontraron combinaciones.")
+                # if combinaciones:
+                #     print(f"\nSe encontraron {len(combinaciones)} combinaciones:")
+                #     for i, combo in enumerate(combinaciones, 1):
+                #         nombres = ', '.join(p.nombre for p in combo)
+                #         total = sum(p.precio for p in combo)
+                #         print(f"{i}. {nombres} -> Total: S/. {total:.2f}")
+                # else:
+                #     print("No se encontraron combinaciones.")
             except ValueError:
                 print("Presupuesto inválido.")
             input("\nPresione Enter para volver al menú...")
