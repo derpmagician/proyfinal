@@ -184,6 +184,10 @@ class Sistema:
                 if total == presupuesto:
                     soluciones.append(list(seleccionados)) # Crear copia de la lista
                     return
+                
+                if len(soluciones) >= 10:  # Limitar a 10 soluciones máximo
+                    return
+
                 # Explorar todas las posibles combinaciones desde el índice actual
                 for i in range(index, len(productos)):
                     p = productos[i]
@@ -360,6 +364,21 @@ def main():
             
         elif opcion == "6":
             id = input("ID del producto a editar: ").strip()
+
+            # Buscar y mostrar el producto actual
+            producto_actual = sistema.inventario.buscar_por_id(id)
+            if not producto_actual:
+                print("Producto no encontrado.")
+                input("\nPresione Enter para volver al menú...")
+                continue
+            
+            print(f"\n=== PRODUCTO ACTUAL ===")
+            print(f"ID: {producto_actual.id}")
+            print(f"Nombre: {producto_actual.nombre} Categoría: {producto_actual.categoria}")
+            print(f"Precio: S/. {producto_actual.precio:.2f} Stock: {producto_actual.stock}")
+            print("=" * 25)
+            
+            print("\nIngrese los nuevos valores (presione Enter para mantener el valor actual):")
             nuevo_nombre = input("Nuevo nombre: ").strip()
             nueva_categoria = input("Nueva categoría: ").strip()
             try:
